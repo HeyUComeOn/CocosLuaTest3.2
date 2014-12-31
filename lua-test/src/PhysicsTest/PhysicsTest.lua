@@ -5,13 +5,11 @@ local STATIC_COLOR = cc.c4f(1.0, 0.0, 0.0, 1.0)
 local DRAG_BODYS_TAG = 0x80
 
 local function range(from, to, step)
-    step = step or 1
+    step = step or 1 -- @important ：注意用法，假如第三个参数未设置的候补，设置了不做任何修改
     return function(_, lastvalue)
         local nextvalue = lastvalue + step
-        if step > 0 and nextvalue <= to or step < 0 and nextvalue >= to or
-            step == 0
-        then
-            return nextvalue
+        if step > 0 and nextvalue <= to or step < 0 and nextvalue >= to or step == 0 then
+            return nextvalue -- and优先级高于or
         end
     end, nil, from - step
 end
@@ -61,24 +59,24 @@ end
 
 local function onTouchBegan(touch, event)
     local location = touch:getLocation()
-    local arr = cc.Director:getInstance():getRunningScene():getPhysicsWorld():getShapes(location)
+    local arr = cc.Director:getInstance():getRunningScene():getPhysicsWorld():getShapes(location)-- 先检查包含所在点是否有物理形状，下面利用形状查找物理实体
 
     local body
     for _, obj in ipairs(arr) do
         if bit.band(obj:getBody():getTag(), DRAG_BODYS_TAG) ~= 0 then -- 位与操作判断tag是否为DRAG_BODY_TAG
-            body = obj:getBody(); -- 找到那个tag为DRAG_BODYS_TAG的，注意0x80二级制为1000 0000
-            break;
+            body = obj:getBody(); -- 找到"物理结构"的tag为DRAG_BODYS_TAG的，注意0x80二级制为1000 0000
+            break;-- break
         end
     end
 
     if body then
         local mouse = cc.Node:create();
-        mouse:setPhysicsBody(cc.PhysicsBody:create(PHYSICS_INFINITY, PHYSICS_INFINITY));
+        mouse:setPhysicsBody(cc.PhysicsBody:create(PHYSICS_INFINITY, PHYSICS_INFINITY));-- 以无限大的质量与力矩为参数创造一个点
         mouse:getPhysicsBody():setDynamic(false);
         mouse:setPosition(location);
         curLayer:addChild(mouse);
-        local joint = cc.PhysicsJointPin:construct(mouse:getPhysicsBody(), body, location);
-        joint:setMaxForce(5000.0 * body:getMass());
+        local joint = cc.PhysicsJointPin:construct(mouse:getPhysicsBody(), body, location);-- 第三个参数为pin点
+        joint:setMaxForce(5000 * body:getMass()); -- 设置两物体间最大的力,不大的话很难拖动
         cc.Director:getInstance():getRunningScene():getPhysicsWorld():addJoint(joint);
         touch.mouse = mouse
 
@@ -102,9 +100,9 @@ local function onTouchEnded(touch, event)
 end
 
 local function makeBall(layer, point, radius, material)
-    material = material or MATERIAL_DEFAULT
+    material = material or MATERIAL_DEFAULT -- 参数3未设置和设置两种情况都包含
 
-    local ball
+    local ball -- 先创建精灵
     if layer.ball then
         ball = cc.Sprite:createWithTexture(layer.ball:getTexture())
     else
@@ -113,8 +111,8 @@ local function makeBall(layer, point, radius, material)
 
     ball:setScale(0.13 * radius)
 
-    local body = cc.PhysicsBody:createCircle(radius, material)
-    ball:setPhysicsBody(body)
+    local body = cc.PhysicsBody:createCircle(radius, material) -- 创建PhysicsBody，形状直接创建，为圆形
+    ball:setPhysicsBody(body) -- 联系形状与精灵
     ball:setPosition(point)
 
     return ball
@@ -292,28 +290,28 @@ local function PhysicsDemoJoints()
         eventDispatcher:addEventListenerWithSceneGraphPriority(touchListener, layer)
 
         local width = (VisibleRect:getVisibleRect().width - 10) / 4;
-        local height = (VisibleRect:getVisibleRect().height - 50) / 4;
+        local height = (VisibleRect:getVisibleRect().height - 50) / 4; -- 每个格子的长宽
 
         local node = cc.Node:create();
-        local box = cc.PhysicsBody:create();
+        local box = cc.PhysicsBody:create(); -- 先创建PhysicsBody，在下面在控制形状
         node:setPhysicsBody(box);
         box:setDynamic(false);
         node:setPosition(cc.p(0, 0));
         layer:addChild(node);
 
         local scene = cc.Director:getInstance():getRunningScene();
-        for i in range(0, 3) do
-            for j in range(0, 3) do
+        for i in range(0, 3) do -- 行 -- @important：注意偏移量offset的设计
+            for j in range(0, 3) do -- 列
                 local offset = cc.p(VisibleRect:leftBottom().x + 5 + j * width + width/2, VisibleRect:leftBottom().y + 50 + i * height + height/2);
                 box:addShape(cc.PhysicsShapeEdgeBox:create(cc.size(width, height), cc.PHYSICSSHAPE_MATERIAL_DEFAULT, 1, offset));
-                local index = i*4 + j
+                local index = i*4 + j -- 给红格子设置标号，左下为标号1，共16个
                 if index == 0 then
                     local sp1 = makeBall(layer, cc.p(offset.x - 30, offset.y), 10);
                     sp1:getPhysicsBody():setTag(DRAG_BODYS_TAG);
                     local sp2 = makeBall(layer, cc.p(offset.x + 30, offset.y), 10);
                     sp2:getPhysicsBody():setTag(DRAG_BODYS_TAG);
 
-                    local joint = cc.PhysicsJointPin:construct(sp1:getPhysicsBody(), sp2:getPhysicsBody(), offset);
+                    local joint = cc.PhysicsJointPin:construct(sp1:getPhysicsBody(), sp2:getPhysicsBody(), offset); -- 销关节
                     cc.Director:getInstance():getRunningScene():getPhysicsWorld():addJoint(joint);
 
                     layer:addChild(sp1);
